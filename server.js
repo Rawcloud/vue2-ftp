@@ -9,6 +9,30 @@ const { Readable } = require('stream');
 
 const PORT = 3000;
 
+let ftpClient = null;
+
+// 清理旧的临时文件
+function cleanupTempFiles() {
+    try {
+        const tempDir = path.join(os.tmpdir(), 'ftp-upload-temp');
+        if (fs.existsSync(tempDir)) {
+            const files = fs.readdirSync(tempDir);
+            for (const file of files) {
+                if (file.endsWith('.part')) {
+                    try {
+                        fs.unlinkSync(path.join(tempDir, file));
+                        console.log(`Cleaned up old temp file: ${file}`);
+                    } catch (err) {
+                        console.error(`Failed to cleanup ${file}:`, err);
+                    }
+                }
+            }
+        }
+    } catch (error) {
+        console.error('Error during temp file cleanup:', error);
+    }
+}
+
 const MIME_TYPES = {
     '.html': 'text/html',
     '.js': 'application/javascript',
@@ -44,8 +68,6 @@ function serveStaticFile(res, filePath) {
     fs.createReadStream(filePath).pipe(res);
     return true;
 }
-
-let ftpClient = null;
 
 function parseBody(req) {
     return new Promise((resolve, reject) => {
@@ -272,9 +294,20 @@ const server = http.createServer(async (req, res) => {
 
                     if (isLast) {
                         const stream = fs.createReadStream(tempFile);
-                        await ftpClient.uploadFrom(stream, fullRemotePath);
-                        fs.unlinkSync(tempFile);
-                        sendJson(res, { success: true, message: 'Upload successful', path: fullRemotePath });
+                        try {
+                            await ftpClient.uploadFrom(stream, fullRemotePath);
+                            // 上传成功后删除临时文件
+                            fs.unlinkSync(tempFile);
+                            sendJson(res, { success: true, message: 'Upload successful', path: fullRemotePath });
+                        } catch (uploadError) {
+                            // 上传失败时也要清理临时文件
+                            try {
+                                fs.unlinkSync(tempFile);
+                            } catch (cleanupError) {
+                                console.error('Failed to cleanup temp file:', cleanupError);
+                            }
+                            throw uploadError;
+                        }
                     } else {
                         sendJson(res, { success: true, message: 'Chunk uploaded', chunkIndex: chunkIndex });
                     }
@@ -298,6 +331,7 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, () => {
+    cleanupTempFiles(); // 启动时清理旧的临时文件
     console.log(`FTP Proxy Server running on http://localhost:${PORT}`);
     console.log('Available endpoints:');
     console.log('  POST /api/connect - Connect to FTP server');
