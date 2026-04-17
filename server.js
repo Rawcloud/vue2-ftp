@@ -167,23 +167,35 @@ const server = http.createServer(async (req, res) => {
             const files = list.map(item => {
                 let modifyTime = null;
                 try {
-                    if (item.modifiedAt) {
+                    if (item.modifiedAt && item.modifiedAt instanceof Date && !isNaN(item.modifiedAt.getTime())) {
+                        // 优先使用modifiedAt字段（Date对象）
                         modifyTime = item.modifiedAt.toISOString();
                     } else if (item.date) {
-                        // 某些FTP服务器可能使用date字段
-                        const date = new Date(item.date);
-                        if (!isNaN(date.getTime())) {
-                            modifyTime = date.toISOString();
+                        let date;
+                        if (typeof item.date === 'string' && item.date.includes('-')) {
+                            // 看起来像是日期字符串
+                            date = new Date(item.date);
+                        } else if (typeof item.date === 'number' || (typeof item.date === 'string' && /^\d+$/.test(item.date))) {
+                            // 数字或数字字符串，尝试作为时间戳
+                            const timestamp = parseInt(item.date);
+                            if (timestamp > 1e12) { // 毫秒时间戳
+                                date = new Date(timestamp);
+                            } else if (timestamp > 1e9) { // 秒时间戳
+                                date = new Date(timestamp * 1000);
+                            } else {
+                                // 太小的数字，可能是无效的
+                                date = null;
+                            }
+                        } else {
+                            date = new Date(item.date);
                         }
-                    } else if (item.time) {
-                        // 尝试其他可能的字段
-                        const date = new Date(item.time);
-                        if (!isNaN(date.getTime())) {
+
+                        if (date && !isNaN(date.getTime()) && date.getFullYear() >= 1970 && date.getFullYear() <= 2100) {
                             modifyTime = date.toISOString();
                         }
                     }
                 } catch (error) {
-                    console.log(`Error parsing date for ${item.name}:`, error.message);
+                    // 静默处理时间解析错误
                 }
 
                 return {
