@@ -852,9 +852,14 @@
                 },
                 
                 formatDate(dateStr) {
-                    if (!dateStr) return '-';
-                    const d = new Date(dateStr);
-                    return d.toLocaleDateString('zh-CN') + ' ' + d.toLocaleTimeString('zh-CN');
+                    if (!dateStr || dateStr === 'null' || dateStr === 'undefined') return '-';
+                    try {
+                        const d = new Date(dateStr);
+                        if (isNaN(d.getTime())) return '-';
+                        return d.toLocaleDateString('zh-CN') + ' ' + d.toLocaleTimeString('zh-CN');
+                    } catch (error) {
+                        return '-';
+                    }
                 }
             }
         });

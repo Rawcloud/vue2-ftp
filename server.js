@@ -164,12 +164,35 @@ const server = http.createServer(async (req, res) => {
             await ftpClient.cd(ftpPath);
             const list = await ftpClient.list();
             
-            const files = list.map(item => ({
-                name: item.name,
-                isDirectory: item.isDirectory,
-                size: item.size,
-                modifyTime: item.modifiedAt ? item.modifiedAt.toISOString() : null
-            }));
+            const files = list.map(item => {
+                let modifyTime = null;
+                try {
+                    if (item.modifiedAt) {
+                        modifyTime = item.modifiedAt.toISOString();
+                    } else if (item.date) {
+                        // 某些FTP服务器可能使用date字段
+                        const date = new Date(item.date);
+                        if (!isNaN(date.getTime())) {
+                            modifyTime = date.toISOString();
+                        }
+                    } else if (item.time) {
+                        // 尝试其他可能的字段
+                        const date = new Date(item.time);
+                        if (!isNaN(date.getTime())) {
+                            modifyTime = date.toISOString();
+                        }
+                    }
+                } catch (error) {
+                    console.log(`Error parsing date for ${item.name}:`, error.message);
+                }
+
+                return {
+                    name: item.name,
+                    isDirectory: item.isDirectory,
+                    size: item.size,
+                    modifyTime: modifyTime
+                };
+            });
             
             sendJson(res, { success: true, files, path: ftpPath });
         }
