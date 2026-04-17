@@ -1,0 +1,863 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FTP 文件管理器</title>
+    <link rel="stylesheet" href="https://unpkg.com/element-ui@2.15.14/lib/theme-chalk/index.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Helvetica Neue', Helvetica, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', Arial, sans-serif;
+            min-height: 100vh;
+        }
+        #app {
+            margin: 0 auto;
+        }
+        .ftp-container {
+            background: #fff;
+            border-radius: 16px;
+            overflow: hidden;
+        }
+        .header-section {
+            background: linear-gradient(135deg, #0088ff 0%, #f8f8f8 100%);
+            padding: 30px;
+            color: white;
+        }
+        .header-section h1 {
+            font-size: 28px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .header-section p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+        .connection-form {
+            background: #f8f9fa;
+            padding: 25px;
+            border-bottom: 1px solid #eee;
+        }
+        .form-row {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            align-items: flex-end;
+        }
+        .form-item {
+            display: flex;
+            /* flex-direction: column; */
+            gap: 5px;
+            align-items: center;
+        }
+        .form-item label {
+            font-size: 13px;
+            color: #606266;
+            font-weight: 500;
+        }
+        .form-input {
+            padding: 8px 12px;
+            border: 1px solid #dcdfe6;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.2s;
+            outline: none;
+        }
+        .form-input:focus {
+            border-color: #4facfe;
+        }
+        .btn-connect {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            border: none;
+            padding: 6px 25px;
+            border-radius: 4px;
+            color: white;
+            font-size: 15px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .btn-connect:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(79, 172, 254, 0.4);
+        }
+        .btn-connect:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .btn-disconnect {
+            background: #909399;
+            margin-left: 10px;
+        }
+        .btn-disconnect:hover {
+            background: #606266;
+            box-shadow: 0 8px 25px rgba(144, 147, 153, 0.4);
+        }
+        .toolbar {
+            padding: 15px 25px;
+            background: #fff;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .toolbar-left {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .btn-tool {
+            padding: 8px 16px;
+            border-radius: 6px;
+            border: 1px solid #dcdfe6;
+            background: #fff;
+            cursor: pointer;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+            color: #606266;
+        }
+        .btn-tool:hover {
+            border-color: #667eea;
+            color: #667eea;
+        }
+        .btn-tool.primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+        }
+        .btn-tool.primary:hover {
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+        .btn-tool:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .btn-tool:disabled:hover {
+            border-color: #dcdfe6;
+            color: #606266;
+        }
+        .breadcrumb-wrapper {
+            padding: 15px 25px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #eee;
+        }
+        .el-breadcrumb {
+            font-size: 14px;
+        }
+        .el-breadcrumb__item {
+            cursor: pointer;
+        }
+        .file-list-wrapper {
+            padding: 0;
+            min-height: 300px;
+        }
+        .file-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .file-table th {
+            background: #fafafa;
+            font-weight: 600;
+            color: #606266;
+            padding: 14px 20px;
+            text-align: left;
+            border-bottom: 2px solid #eee;
+            font-size: 14px;
+        }
+        .file-table td {
+            padding: 12px 20px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .file-table tbody tr {
+            transition: background 0.2s;
+        }
+        .file-table tbody tr:hover {
+            background: #f8f9fa;
+        }
+        .file-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            transition: color 0.2s;
+            color: #303133;
+        }
+        .file-item:hover {
+            color: #667eea;
+        }
+        .file-icon {
+            font-size: 22px;
+        }
+        .file-size {
+            color: #909399;
+            font-size: 13px;
+        }
+        .file-date {
+            color: #909399;
+            font-size: 13px;
+        }
+        .file-actions {
+            display: flex;
+            gap: 8px;
+        }
+        .action-btn {
+            padding: 5px 12px;
+            border-radius: 4px;
+            border: 1px solid #dcdfe6;
+            background: #fff;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+            color: #606266;
+        }
+        .action-btn:hover {
+            border-color: #667eea;
+            color: #667eea;
+        }
+        .action-btn.danger:hover {
+            border-color: #f56c6c;
+            color: #f56c6c;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 80px 20px;
+            color: #909399;
+        }
+        .empty-state .icon {
+            font-size: 72px;
+            margin-bottom: 20px;
+            opacity: 0.6;
+        }
+        .loading-state {
+            text-align: center;
+            padding: 80px 20px;
+        }
+        .loading-state .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid #f0f0f0;
+            border-top-color: #4facfe;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .status-bar {
+            padding: 12px 25px;
+            background: #f8f9fa;
+            border-top: 1px solid #eee;
+            font-size: 13px;
+            color: #909399;
+            display: flex;
+            justify-content: space-between;
+        }
+        .upload-area {
+            border: 2px dashed #dcdfe6;
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            margin: 20px 25px;
+            transition: all 0.3s;
+            cursor: pointer;
+            background: #fafafa;
+        }
+        .upload-area:hover {
+            border-color: #4facfe;
+            background: rgba(79, 172, 254, 0.03);
+        }
+        .upload-area.dragover {
+            border-color: #4facfe;
+            background: rgba(79, 172, 254, 0.08);
+        }
+        .upload-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+        .upload-area p {
+            color: #606266;
+            margin-bottom: 8px;
+        }
+        .upload-area .hint {
+            color: #909399;
+            font-size: 13px;
+        }
+        .upload-area input {
+            display: none;
+        }
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+        }
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+        .status-dot.connected {
+            background: #67c23a;
+            box-shadow: 0 0 8px rgba(103, 194, 58, 0.5);
+        }
+        .status-dot.disconnected {
+            background: #909399;
+        }
+        .progress-list {
+            padding: 0 25px 20px;
+        }
+        .progress-list-top {
+            margin-top: 20px;
+        }
+        .progress-item {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 12px 15px;
+            margin-bottom: 10px;
+        }
+        .progress-item .name {
+            font-size: 13px;
+            color: #606266;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+        }
+        .progress-item .el-progress {
+            margin-top: 5px;
+        }
+        .server-hint {
+            background: #fdf6ec;
+            border: 1px solid #f5dab1;
+            border-radius: 8px;
+            padding: 15px 20px;
+            margin: 20px 25px;
+            font-size: 14px;
+            color: #e6a23c;
+        }
+        .server-hint code {
+            background: rgba(0,0,0,0.1);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: Consolas, monospace;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div class="ftp-container">
+            <div class="header-section">
+                <h1>
+                    <span>📁</span>
+                    FTP 文件管理器
+                </h1>
+                <p>连接到 FTP 服务器，轻松管理您的文件</p>
+            </div>
+
+            <div class="connection-form">
+                <div class="form-row">
+                    <div class="form-item">
+                        <label>主机地址</label>
+                        <input type="text" class="form-input" v-model="connectionForm.host" placeholder="ftp.example.com" style="width: 200px;">
+                    </div>
+                    <div class="form-item">
+                        <label>端口</label>
+                        <input type="number" class="form-input" v-model="connectionForm.port" placeholder="21" style="width: 80px;">
+                    </div>
+                    <div class="form-item">
+                        <label>用户名</label>
+                        <input type="text" class="form-input" v-model="connectionForm.user" placeholder="anonymous" style="width: 150px;">
+                    </div>
+                    <div class="form-item">
+                        <label>密码</label>
+                        <input type="password" class="form-input" v-model="connectionForm.password" placeholder="••••••" style="width: 150px;">
+                    </div>
+                    <div class="form-item">
+                        <label>&nbsp;</label>
+                        <button class="btn-connect" @click="connect" :disabled="isLoading || isConnected">
+                            <span v-if="isLoading" class="el-icon-loading"></span>
+                            <span v-else>{{ isConnected ? '✓ 已连接' : '连接服务器' }}</span>
+                        </button>
+                        <button v-if="isConnected" class="btn-connect btn-disconnect" @click="disconnect">
+                            断开
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <template v-if="isConnected">
+                <div class="toolbar">
+                    <div class="toolbar-left">
+                        <button class="btn-tool primary" @click="triggerUpload">
+                            <span>⬆</span> 上传文件
+                        </button>
+                        <button class="btn-tool" @click="refreshList">
+                            <span>🔄</span> 刷新
+                        </button>
+                        <button class="btn-tool" @click="goUp" :disabled="currentPath === '/'">
+                            <span>⬆</span> 上级目录
+                        </button>
+                    </div>
+                    <div class="connection-status">
+                        <span class="status-dot connected"></span>
+                        <span>已连接 · {{ connectionForm.host }}:{{ connectionForm.port }}</span>
+                    </div>
+                </div>
+
+                <div class="breadcrumb-wrapper">
+                    <el-breadcrumb separator="/">
+                        <el-breadcrumb-item v-for="(crumb, index) in breadcrumbs" :key="index">
+                            <span v-if="index === breadcrumbs.length - 1" style="color: #303133;">{{ crumb.name }}</span>
+                            <a v-else @click.prevent="navigateTo(crumb.path)" style="cursor: pointer; color: #667eea; text-decoration: none;">
+                                {{ crumb.name }}
+                            </a>
+                        </el-breadcrumb-item>
+                    </el-breadcrumb>
+                </div>
+
+                <div v-if="uploadQueue.length > 0" class="progress-list progress-list-top">
+                    <div v-for="(item, idx) in uploadQueue" :key="idx" class="progress-item">
+                        <div class="name">
+                            <span>{{ item.name }}</span>
+                            <span>{{ item.progress }}%</span>
+                        </div>
+                        <el-progress :percentage="item.progress" :stroke-width="6" :show-text="false"></el-progress>
+                    </div>
+                </div>
+
+                <div v-if="isLoading" class="loading-state">
+                    <div class="spinner"></div>
+                    <p style="color: #909399;">正在加载文件列表...</p>
+                </div>
+
+                <div v-else-if="files.length === 0" class="empty-state">
+                    <div class="icon">📂</div>
+                    <p style="font-size: 16px; margin-bottom: 8px;">当前目录为空</p>
+                    <p class="hint">尝试上传一些文件或切换到其他目录</p>
+                </div>
+
+                <div v-else class="file-list-wrapper">
+                    <table class="file-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 45%;">名称</th>
+                                <th style="width: 15%;">大小</th>
+                                <th style="width: 20%;">修改日期</th>
+                                <th style="width: 20%;">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="(file, index) in files" :key="index">
+                                <td>
+                                    <div class="file-item" @click="handleFileClick(file)">
+                                        <span class="file-icon">
+                                            {{ file.isDirectory ? '📁' : '📄' }}
+                                        </span>
+                                        <span>{{ file.name }}</span>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="file-size">{{ formatFileSize(file.size) }}</span>
+                                </td>
+                                <td>
+                                    <span class="file-date">{{ formatDate(file.modifyTime) }}</span>
+                                </td>
+                                <td>
+                                    <div class="file-actions">
+                                        <button v-if="!file.isDirectory" class="action-btn" @click="downloadFile(file)">
+                                            ⬇ 下载
+                                        </button>
+                                        <button class="action-btn danger" @click="deleteFile(file)">
+                                            🗑 删除
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="upload-area" 
+                     :class="{ dragover: isDragover }"
+                     @click="triggerUpload"
+                     @dragover.prevent="isDragover = true"
+                     @dragleave="isDragover = false"
+                     @drop.prevent="handleDrop">
+                    <div class="upload-icon">☁️</div>
+                    <p>拖拽文件到此处上传</p>
+                    <p class="hint">或点击选择文件 · 支持多文件上传</p>
+                    <input type="file" ref="fileInput" multiple @change="handleFileSelect">
+                </div>
+
+                <div class="status-bar">
+                    <span>📍 {{ currentPath }}</span>
+                    <span>{{ files.length }} 个项目 · {{ folderCount }} 文件夹 · {{ fileCount }} 文件</span>
+                </div>
+            </template>
+
+            <template v-else>
+                <div class="empty-state" style="padding: 100px 20px;">
+                    <div class="icon" style="font-size: 80px;">🌐</div>
+                    <p style="font-size: 18px; margin-bottom: 10px; color: #606266;">未连接到 FTP 服务器</p>
+                    <p style="color: #909399; margin-bottom: 25px;">请填写服务器信息并点击连接</p>
+                    <div class="server-hint">
+                        💡 提示：确保 FTP 服务器已启动，或使用 <code>node server.js</code> 启动本地代理服务
+                    </div>
+                </div>
+            </template>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.7.14/dist/vue.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/element-ui@2.15.14/lib/index.js"></script>
+    <script>
+        const API_BASE = '/api';
+
+        new Vue({
+            el: '#app',
+            data() {
+                return {
+                    connectionForm: {
+                        host: '127.0.0.1',
+                        port: 21,
+                        user: 'rawcloud',
+                        password: '12345'
+                    },
+                    isLoading: false,
+                    isConnected: false,
+                    files: [],
+                    currentPath: '/',
+                    isDragover: false,
+                    uploadQueue: []
+                }
+            },
+            computed: {
+                breadcrumbs() {
+                    const crumbs = [{ name: '根目录', path: '/' }];
+                    if (this.currentPath === '/') return crumbs;
+                    
+                    const parts = this.currentPath.split('/').filter(p => p);
+                    let path = '';
+                    parts.forEach(part => {
+                        path += '/' + part;
+                        crumbs.push({ name: part, path: path });
+                    });
+                    return crumbs;
+                },
+                folderCount() {
+                    return this.files.filter(f => f.isDirectory).length;
+                },
+                fileCount() {
+                    return this.files.filter(f => !f.isDirectory).length;
+                }
+            },
+            methods: {
+                async connect() {
+                    if (!this.connectionForm.host) {
+                        this.$message.error('请输入主机地址');
+                        return;
+                    }
+                    
+                    this.isLoading = true;
+                    try {
+                        const response = await fetch(`${API_BASE}/connect`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(this.connectionForm)
+                        });
+                        
+                        const data = await response.json();
+                        
+                        if (response.ok && data.success) {
+                            this.isConnected = true;
+                            this.$message.success('连接成功');
+                            await this.listFiles();
+                        } else {
+                            this.$message.error(data.error || '连接失败');
+                        }
+                    } catch (error) {
+                        console.error('Connection error:', error);
+                        this.$message.error('无法连接到服务器，请确保运行了 node server.js');
+                    } finally {
+                        this.isLoading = false;
+                    }
+                },
+                
+                async disconnect() {
+                    try {
+                        await fetch(`${API_BASE}/disconnect`, { method: 'POST' });
+                    } catch (e) {}
+                    
+                    this.isConnected = false;
+                    this.files = [];
+                    this.currentPath = '/';
+                    this.$message.success('已断开连接');
+                },
+                
+                async listFiles() {
+                    this.isLoading = true;
+                    try {
+                        const response = await fetch(`${API_BASE}/list`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ path: this.currentPath })
+                        });
+                        
+                        const data = await response.json();
+                        
+                        if (data.success) {
+                            this.files = data.files;
+                        } else {
+                            this.$message.error(data.error || '获取文件列表失败');
+                        }
+                    } catch (error) {
+                        console.error('List error:', error);
+                        this.$message.error('获取文件列表失败');
+                    } finally {
+                        this.isLoading = false;
+                    }
+                },
+                
+                async refreshList() {
+                    await this.listFiles();
+                },
+                
+                async goUp() {
+                    if (this.currentPath === '/') return;
+                    const parentPath = this.currentPath.split('/').slice(0, -1).join('/') || '/';
+                    this.currentPath = parentPath;
+                    await this.listFiles();
+                },
+                
+                async navigateTo(path) {
+                    this.currentPath = path;
+                    await this.listFiles();
+                },
+                
+                async handleFileClick(file) {
+                    if (file.isDirectory) {
+                        this.currentPath = this.currentPath === '/' 
+                            ? '/' + file.name 
+                            : this.currentPath + '/' + file.name;
+                        await this.listFiles();
+                    }
+                },
+                
+                triggerUpload() {
+                    this.$refs.fileInput.click();
+                },
+                
+                handleFileSelect(event) {
+                    const files = event.target.files;
+                    this.uploadFiles(files);
+                    event.target.value = '';
+                },
+                
+                handleDrop(event) {
+                    this.isDragover = false;
+                    const files = event.dataTransfer.files;
+                    this.uploadFiles(files);
+                },
+                
+                async uploadFiles(files) {
+                    if (files.length === 0) return;
+                    
+                    for (let i = 0; i < files.length; i++) {
+                        const file = files[i];
+                        const uploadItem = {
+                            name: file.name,
+                            progress: 0,
+                            completed: false
+                        };
+                        this.uploadQueue.push(uploadItem);
+                        
+                        this.uploadFileInChunks(file, uploadItem);
+                    }
+                },
+                
+                uploadFileInChunks(file, uploadItem) {
+                    const CHUNK_SIZE = 5 * 1024 * 1024; // 5MB chunks
+                    const fileSize = file.size;
+                    let uploadedSize = 0;
+                    let chunkIndex = 0;
+                    const totalChunks = Math.ceil(fileSize / CHUNK_SIZE);
+                    
+                    const uploadNextChunk = async () => {
+                        if (uploadedSize >= fileSize) {
+                            uploadItem.progress = 100;
+                            uploadItem.completed = true;
+                            
+                            this.$message.success(`${file.name} 上传成功`);
+                            await this.listFiles();
+
+                            setTimeout(() => {
+                                const index = this.uploadQueue.indexOf(uploadItem);
+                                if (index !== -1) {
+                                    this.uploadQueue.splice(index, 1);
+                                }
+                            }, 3000);
+                            return;
+                        }
+                        
+                        const start = uploadedSize;
+                        const end = Math.min(start + CHUNK_SIZE, fileSize);
+                        const chunk = file.slice(start, end);
+                        
+                        try {
+                            const reader = new FileReader();
+
+                            reader.onload = async (e) => {
+                                const dataURL = e.target.result;
+                                if (!dataURL) {
+                                    this.$message.error(`${file.name} 上传失败：文件数据读取错误`);
+                                    return;
+                                }
+
+                                const base64Prefix = 'base64,';
+                                const fileData = dataURL.substring(dataURL.indexOf(base64Prefix) + base64Prefix.length);
+                                const isLast = end >= fileSize;
+
+                                try {
+                                    const response = await fetch(`${API_BASE}/upload-multipart`, {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({
+                                            fileName: file.name,
+                                            fileData,
+                                            remotePath: this.currentPath,
+                                            chunkIndex,
+                                            totalChunks,
+                                            isLast
+                                        })
+                                    });
+
+                                    const data = await response.json().catch(() => ({}));
+
+                                    if (response.ok && data.success) {
+                                        uploadedSize = end;
+                                        chunkIndex++;
+                                        uploadItem.progress = Math.round((uploadedSize / fileSize) * 100);
+                                        uploadNextChunk();
+                                    } else {
+                                        this.$message.error(`${file.name} 上传失败: ${data.error || response.statusText}`);
+                                    }
+                                } catch (error) {
+                                    console.error('Upload error:', error);
+                                    this.$message.error(`${file.name} 上传失败`);
+                                }
+                            };
+
+                            reader.onerror = () => {
+                                this.$message.error(`${file.name} 上传失败：文件读取错误`);
+                            };
+
+                            reader.readAsDataURL(chunk);
+                        } catch (error) {
+                            console.error('Upload error:', error);
+                            this.$message.error(`${file.name} 上传失败`);
+                        }
+                    };
+                    
+                    uploadNextChunk();
+                },
+                
+                async downloadFile(file) {
+                    try {
+                        const remotePath = this.currentPath === '/' 
+                            ? '/' + file.name 
+                            : this.currentPath + '/' + file.name;
+                        
+                        const response = await fetch(`${API_BASE}/download`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ remotePath })
+                        });
+                        
+                        if (response.ok) {
+                            const blob = await response.blob();
+                            const url = window.URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = file.name;
+                            document.body.appendChild(a);
+                            a.click();
+                            document.body.removeChild(a);
+                            window.URL.revokeObjectURL(url);
+                            this.$message.success(`${file.name} 下载成功`);
+                        } else {
+                            const errorData = await response.json();
+                            this.$message.error(`下载失败: ${errorData.error || '未知错误'}`);
+                        }
+                    } catch (error) {
+                        console.error('Download error:', error);
+                        this.$message.error('下载失败');
+                    }
+                },
+                
+                async deleteFile(file) {
+                    try {
+                        await this.$confirm(`确定要删除 "${file.name}" 吗?`, '确认删除', {
+                            confirmButtonText: '删除',
+                            cancelButtonText: '取消',
+                            type: 'warning'
+                        });
+                        
+                        const remotePath = this.currentPath === '/' 
+                            ? '/' + file.name 
+                            : this.currentPath + '/' + file.name;
+                        
+                        const response = await fetch(`${API_BASE}/delete`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ remotePath, isDirectory: file.isDirectory })
+                        });
+                        
+                        const data = await response.json();
+                        
+                        if (data.success) {
+                            this.$message.success('删除成功');
+                            await this.listFiles();
+                        } else {
+                            this.$message.error(`删除失败: ${data.error}`);
+                        }
+                    } catch (error) {
+                        if (error !== 'cancel') {
+                            console.error('Delete error:', error);
+                            this.$message.error('删除失败');
+                        }
+                    }
+                },
+                
+                formatFileSize(bytes) {
+                    if (!bytes || bytes === 0) return '-';
+                    const k = 1024;
+                    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+                    const i = Math.floor(Math.log(bytes) / Math.log(k));
+                    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+                },
+                
+                formatDate(dateStr) {
+                    if (!dateStr) return '-';
+                    const d = new Date(dateStr);
+                    return d.toLocaleDateString('zh-CN') + ' ' + d.toLocaleTimeString('zh-CN');
+                }
+            }
+        });
+    </script>
+</body>
+</html>

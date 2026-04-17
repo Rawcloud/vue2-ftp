@@ -1,0 +1,22 @@
+{
+  "name": "ftp-vue2",
+  "version": "1.0.0",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "server": "node server.js"
+  },
+  "keywords": [
+    "ftp",
+    "vue2",
+    "file-manager"
+  ],
+  "author": "",
+  "license": "ISC",
+  "description": "FTP File Manager built with Vue2",
+  "dependencies": {
+    "basic-ftp": "^5.3.0",
+    "element-ui": "^2.15.14",
+    "vue": "^2.7.16"
+  }
+}
