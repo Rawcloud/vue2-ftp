@@ -12,7 +12,22 @@
 - ✅ **上传进度** - 显示上传进度条
 - ✅ **精美 UI** - 渐变背景、卡片式设计、动画效果
 
+## 界面预览
+
+### 初始界面
+![初始界面](assets/init.png)
+
+### FTP 连接
+![FTP 连接](assets/link.png)
+
+### 文件选择上传
+![文件选择上传](assets/choosefile.png)
+
+### 上传进度
+![上传进度](assets/upload.png)
+
 ## 技术栈
+
 
 - **前端**：Vue 2.7 + Element UI 2.15（CDN 引入）
 - **后端**：Node.js + basic-ftp 5.3.0
