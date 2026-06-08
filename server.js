@@ -69,11 +69,31 @@ function serveStaticFile(res, filePath) {
     return true;
 }
 
-function parseBody(req) {
+function parseBody(req, maxSize = 200 * 1024 * 1024) { // default 200MB
     return new Promise((resolve, reject) => {
-        let body = '';
-        req.on('data', chunk => body += chunk);
-        req.on('end', () => resolve(body));
+        const chunks = [];
+        let size = 0;
+
+        req.on('data', chunk => {
+            size += chunk.length;
+            if (size > maxSize) {
+                const err = new Error('Payload too large');
+                // destroy the connection to stop receiving more data
+                try { req.destroy(err); } catch (e) {}
+                return reject(err);
+            }
+            chunks.push(chunk);
+        });
+
+        req.on('end', () => {
+            try {
+                const buf = Buffer.concat(chunks);
+                resolve(buf.toString());
+            } catch (e) {
+                reject(e);
+            }
+        });
+
         req.on('error', reject);
     });
 }
@@ -328,13 +348,17 @@ const server = http.createServer(async (req, res) => {
                     fs.appendFileSync(tempFile, fileBuffer);
 
                     if (isLast) {
-                        const stream = fs.createReadStream(tempFile);
+                        console.log(`Assembled temp file: ${tempFile}, size=${fs.existsSync(tempFile) ? fs.statSync(tempFile).size : 0}`);
                         try {
-                            await ftpClient.uploadFrom(stream, fullRemotePath);
+                            console.log(`Starting FTP upload for ${fullRemotePath}`);
+                            // pass the local file path directly to basic-ftp which handles reading the file
+                            await ftpClient.uploadFrom(tempFile, fullRemotePath);
+                            console.log(`Finished FTP upload for ${fullRemotePath}`);
                             // 上传成功后删除临时文件
                             fs.unlinkSync(tempFile);
                             sendJson(res, { success: true, message: 'Upload successful', path: fullRemotePath });
                         } catch (uploadError) {
+                            console.error('FTP upload error:', uploadError);
                             // 上传失败时也要清理临时文件
                             try {
                                 fs.unlinkSync(tempFile);
@@ -347,9 +371,23 @@ const server = http.createServer(async (req, res) => {
                         sendJson(res, { success: true, message: 'Chunk uploaded', chunkIndex: chunkIndex });
                     }
                 } else {
-                    const stream = Readable.from(fileBuffer);
-                    await ftpClient.uploadFrom(stream, fullRemotePath);
-                    sendJson(res, { success: true, message: 'Upload successful', path: fullRemotePath });
+                    // handle non-chunked uploads by writing to a temp file then uploading
+                    const tempDir = path.join(os.tmpdir(), 'ftp-upload-temp');
+                    if (!fs.existsSync(tempDir)) {
+                        fs.mkdirSync(tempDir, { recursive: true });
+                    }
+                    const tempFile = path.join(tempDir, `${fileName}.${Date.now()}.tmp`);
+                    fs.writeFileSync(tempFile, fileBuffer);
+                    try {
+                        console.log(`Uploading single-file ${tempFile} -> ${fullRemotePath}`);
+                        await ftpClient.uploadFrom(tempFile, fullRemotePath);
+                        fs.unlinkSync(tempFile);
+                        sendJson(res, { success: true, message: 'Upload successful', path: fullRemotePath });
+                    } catch (uploadError) {
+                        console.error('FTP upload error:', uploadError);
+                        try { fs.unlinkSync(tempFile); } catch (e) {}
+                        throw uploadError;
+                    }
                 }
             } catch (error) {
                 console.error('Upload error:', error);
@@ -361,7 +399,8 @@ const server = http.createServer(async (req, res) => {
         }
     } catch (error) {
         console.error('FTP Error:', error);
-        sendError(res, error.message);
+        const statusCode = error && error.message === 'Payload too large' ? 413 : 500;
+        sendError(res, error.message || 'Internal server error', statusCode);
     }
 });
 
